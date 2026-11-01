@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <string.h>
 #include "file.h"
@@ -7,19 +8,35 @@ void save_contactsinfile(AddressBook *addressbook)
 {
     FILE *fp;
 
-    // Open file in write mode
-    // If file already exists, old data will be overwritten
-    if ((fp = fopen("contacts.csv", "w")) == NULL)
+    // Check whether AddressBook is valid
+    if (addressbook == NULL)
     {
-        // Execute when file opening fails
-        fprintf(stderr, "Error opening file");
+        printf("Invalid address book\n");
         return;
     }
 
-    // Save total number of contacts at the beginning of file
+    // Check contact count
+    if (addressbook->contact_count < 0 ||
+        addressbook->contact_count > MAX_CONTACTS)
+    {
+        printf("Invalid contact count\n");
+        return;
+    }
+
+    // Open file in write mode
+    // Old data will be overwritten
+    fp = fopen("contacts.csv", "w");
+
+    if (fp == NULL)
+    {
+        fprintf(stderr, "Error opening file\n");
+        return;
+    }
+
+    // Save total number of contacts
     fprintf(fp, "#%d\n", addressbook->contact_count);
 
-    // Store all contact details into file
+    // Save all contact details
     for (int i = 0; i < addressbook->contact_count; i++)
     {
         fprintf(fp, "%s,%s,%s\n",
@@ -28,51 +45,75 @@ void save_contactsinfile(AddressBook *addressbook)
                 addressbook->contact_details[i].Mail_ID);
     }
 
-    // Close file after saving data
+    // Close file
     fclose(fp);
 
     printf("\nContacts Saved Successfully\n");
 }
 
-// Function to load contacts from file into AddressBook structure
+
+// Function to load contacts from file
 void loadContactsFromFile(AddressBook *addressbook)
 {
     FILE *fp;
+    int count;
 
-    // Open file in read mode
-    if ((fp = fopen("contacts.csv", "r")) == NULL)
+    // Check whether AddressBook is valid
+    if (addressbook == NULL)
     {
-        // Execute when file does not exist
-        fprintf(stderr, "File does not exist yet\n");
         return;
     }
 
-    // Read total number of contacts stored in file
-    if (fscanf(fp, "#%d\n", &addressbook->contact_count) != 1)
-    {
-        // If count cannot be read, initialize contact count to zero
-        addressbook->contact_count = 0;
+    // Initialize contact count
+    addressbook->contact_count = 0;
 
+    // Open file in read mode
+    fp = fopen("contacts.csv", "r");
+
+    if (fp == NULL)
+    {
+        // File may not exist during the first execution
+        printf("No saved contacts found\n");
+        return;
+    }
+
+    // Read total number of contacts
+    if (fscanf(fp, "#%d", &count) != 1)
+    {
+        printf("Invalid contact file\n");
         fclose(fp);
         return;
     }
 
-    // Read all contacts one by one from file
-    for (int i = 0; i < addressbook->contact_count; i++)
+    // Check whether count is within the allowed limit
+    if (count < 0 || count > MAX_CONTACTS)
+    {
+        printf("Invalid contact count in file\n");
+        fclose(fp);
+        return;
+    }
+
+    // Read contacts one by one
+    for (int i = 0; i < count; i++)
     {
         if (fscanf(fp,
-                   " %[^,],%[^,],%[^\n]\n",
+                   " %49[^,],%10[^,],%49[^\n]",
                    addressbook->contact_details[i].Name,
                    addressbook->contact_details[i].Mobile_number,
                    addressbook->contact_details[i].Mail_ID) != 3)
         {
-            // If file data is corrupted or incomplete,
-            // load only valid contacts read so far
-            addressbook->contact_count = i;
+            // Stop loading if file data is incomplete or invalid
+            printf("Warning: Invalid contact data found\n");
             break;
         }
+
+        // Update count only after successfully reading a contact
+        addressbook->contact_count++;
     }
 
-    // Close file after reading
+    // Close file
     fclose(fp);
+
+    printf("%d Contacts Loaded Successfully\n",
+           addressbook->contact_count);
 }
